@@ -1,13 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import axios from 'axios';
 import {
   ClipboardList, Target, BarChart3, CheckSquare, Lightbulb,
   Copy, Check, ChevronDown, ChevronUp, Download, RefreshCw,
-  Share2, FileText, Loader2,
+  Share2, FileText,
 } from 'lucide-react';
-import API_URL from '../config';
-
-const SERVER = API_URL;
 
 const SECTIONS = [
   {
@@ -87,7 +83,7 @@ function CopyButton({ text, darkMode }) {
 }
 
 function SectionCard({ section, report, expanded, onToggle, darkMode }) {
-  const { key, label, icon: Icon, accent, light, badge, isList } = section;
+  const { key, label, icon: Icon, accent, light, isList } = section;
   const content = report[key];
   const isEmpty = !content || (Array.isArray(content) && content.length === 0);
 
@@ -101,13 +97,11 @@ function SectionCard({ section, report, expanded, onToggle, darkMode }) {
         ${darkMode ? 'bg-white/3 border-white/6 hover:border-white/10' : 'bg-white border-gray-100 shadow-sm hover:shadow-md'}
       `}
     >
-      {/* Header */}
       <button
         onClick={onToggle}
         className="w-full flex items-center justify-between px-5 py-4 text-left group"
       >
         <div className="flex items-center gap-3">
-          {/* Icon */}
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ background: light }}
@@ -117,8 +111,7 @@ function SectionCard({ section, report, expanded, onToggle, darkMode }) {
           <div>
             <h3 className={`font-semibold text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>{label}</h3>
             {!expanded && !isEmpty && (
-              <p className={`text-xs mt-0.5 truncate max-w-xs
-                ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+              <p className={`text-xs mt-0.5 truncate max-w-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
                 {isList
                   ? `${Array.isArray(content) ? content.length : 0} items`
                   : `${plainText.split(' ').length} words`
@@ -137,12 +130,8 @@ function SectionCard({ section, report, expanded, onToggle, darkMode }) {
         </div>
       </button>
 
-      {/* Content */}
       {expanded && (
-        <div
-          className={`px-5 pb-5 border-t animate-fade-in
-            ${darkMode ? 'border-white/5' : 'border-gray-50'}`}
-        >
+        <div className={`px-5 pb-5 border-t animate-fade-in ${darkMode ? 'border-white/5' : 'border-gray-50'}`}>
           {isEmpty ? (
             <p className={`pt-4 text-sm italic ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
               No content available.
@@ -164,8 +153,7 @@ function SectionCard({ section, report, expanded, onToggle, darkMode }) {
               ))}
             </ul>
           ) : (
-            <div className={`pt-4 text-sm leading-relaxed whitespace-pre-wrap
-              ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            <div className={`pt-4 text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               {content}
             </div>
           )}
@@ -176,37 +164,89 @@ function SectionCard({ section, report, expanded, onToggle, darkMode }) {
 }
 
 export default function ReportDisplay({ report, topic, wordCount, generatedAt, onNewResearch, darkMode }) {
-  const [expanded, setExpanded]   = useState({ executiveSummary: true, keyFindings: true });
-  const [downloading, setDown]    = useState(false);
-  const [shared, setShared]       = useState(false);
+  const [expanded, setExpanded] = useState({ executiveSummary: true, keyFindings: true });
+  const [shared, setShared]     = useState(false);
 
-  const toggle = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
-
+  const toggle      = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
   const expandAll   = () => setExpanded(Object.fromEntries(SECTIONS.map(s => [s.key, true])));
   const collapseAll = () => setExpanded({});
 
-  const downloadPDF = useCallback(async () => {
-    setDown(true);
-    try {
-      const res = await axios.post(
-        `${SERVER}/api/research/export-pdf`,
-        { report, topic, generatedAt },
-        { responseType: 'blob' }
-      );
-      const url  = URL.createObjectURL(res.data);
-      const link = document.createElement('a');
-      link.href  = url;
-      link.download = `ResearchAI-${topic.replace(/\s+/g, '-').slice(0, 40)}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('PDF download failed:', err);
-      alert('PDF generation failed. Make sure puppeteer is installed in the server.');
-    } finally {
-      setDown(false);
-    }
+  // PDF generation — no server needed, browser handles it
+  const downloadPDF = useCallback(() => {
+    const formatList = (items) =>
+      Array.isArray(items) && items.length
+        ? items.map((item) => `<li>${item}</li>`).join('')
+        : '<li>N/A</li>';
+
+    const date = generatedAt
+      ? new Date(generatedAt).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+      : new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ResearchAI - ${topic}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1a2e; padding: 48px; line-height: 1.7; font-size: 14px; }
+    .header { background: linear-gradient(135deg, #7C3AED 0%, #06B6D4 100%); color: white; padding: 32px 36px; border-radius: 16px; margin-bottom: 32px; }
+    .header-title { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+    .header-meta { font-size: 13px; opacity: 0.88; }
+    .header-meta span { margin-right: 24px; }
+    .section { background: #F8F7FF; border-left: 4px solid #7C3AED; border-radius: 0 12px 12px 0; padding: 24px 28px; margin-bottom: 20px; }
+    .section.cyan { border-left-color: #06B6D4; }
+    .section.blue { border-left-color: #3B82F6; }
+    .section-badge { display: inline-block; background: linear-gradient(135deg, #7C3AED, #06B6D4); color: white; padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-bottom: 10px; text-transform: uppercase; }
+    .section h2 { color: #4C1D95; font-size: 17px; font-weight: 700; margin-bottom: 12px; }
+    .section p { color: #374151; line-height: 1.8; white-space: pre-wrap; }
+    .section ul { padding-left: 20px; }
+    .section li { color: #374151; margin-bottom: 8px; line-height: 1.7; }
+    .footer { text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 36px; padding-top: 16px; border-top: 1px solid #E5E7EB; }
+    @media print { body { padding: 20px; } .header { border-radius: 8px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title">🔬 ResearchAI Report</div>
+    <div class="header-meta">
+      <span>📌 Topic: <strong>${topic}</strong></span>
+      <span>📅 ${date}</span>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-badge">📋 Executive Summary</div>
+    <h2>Executive Summary</h2>
+    <p>${report.executiveSummary || 'N/A'}</p>
+  </div>
+  <div class="section blue">
+    <div class="section-badge" style="background:linear-gradient(135deg,#3B82F6,#7C3AED)">🎯 Key Findings</div>
+    <h2 style="color:#1D4ED8">Key Findings</h2>
+    <ul>${formatList(report.keyFindings)}</ul>
+  </div>
+  <div class="section cyan">
+    <div class="section-badge" style="background:linear-gradient(135deg,#06B6D4,#7C3AED)">📊 Detailed Analysis</div>
+    <h2 style="color:#0E7490">Detailed Analysis</h2>
+    <p>${(report.detailedAnalysis || 'N/A').replace(/\n/g, '<br>')}</p>
+  </div>
+  <div class="section">
+    <div class="section-badge">✅ Conclusion</div>
+    <h2>Conclusion</h2>
+    <p>${report.conclusion || 'N/A'}</p>
+  </div>
+  <div class="section blue">
+    <div class="section-badge" style="background:linear-gradient(135deg,#059669,#06B6D4)">💡 Recommendations</div>
+    <h2 style="color:#065F46">Recommendations</h2>
+    <ul>${formatList(report.recommendations)}</ul>
+  </div>
+  <div class="footer">Generated by <strong>ResearchAI</strong> | Powered by LLaMA-3.3-70B via Groq</div>
+  <script>window.onload = () => window.print();</script>
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(html);
+    printWindow.document.close();
   }, [report, topic, generatedAt]);
 
   const shareReport = () => {
@@ -233,21 +273,17 @@ export default function ReportDisplay({ report, topic, wordCount, generatedAt, o
     <div className="animate-fade-in-up">
       {/* Report header card */}
       <div className="relative rounded-2xl overflow-hidden mb-6">
-        {/* Gradient banner */}
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/60 via-purple-800/40 to-cyan-900/30" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(124,58,237,0.3),transparent_70%)]" />
 
         <div className={`relative border rounded-2xl p-6 ${darkMode ? 'border-purple-500/20' : 'border-purple-200'}`}>
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="min-w-0">
-              {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/15 border border-green-500/30 mb-3">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                 <span className="text-xs text-green-400 font-semibold">Report Generated Successfully</span>
               </div>
-              {/* Title */}
               <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight mb-1 pr-4">{topic}</h2>
-              {/* Meta */}
               <div className="flex flex-wrap gap-3 mt-2">
                 {[
                   { icon: FileText, label: `${wordCount.toLocaleString()} words` },
@@ -280,16 +316,14 @@ export default function ReportDisplay({ report, topic, wordCount, generatedAt, o
 
               <button
                 onClick={downloadPDF}
-                disabled={downloading}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium
                   bg-gradient-to-r from-purple-600 to-purple-700
                   hover:from-purple-500 hover:to-purple-600
                   text-white transition-all
-                  hover:shadow-[0_0_20px_rgba(124,58,237,0.5)]
-                  disabled:opacity-60 disabled:cursor-not-allowed"
+                  hover:shadow-[0_0_20px_rgba(124,58,237,0.5)]"
               >
-                {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-                {downloading ? 'Generating...' : 'Download PDF'}
+                <Download size={13} />
+                Download PDF
               </button>
 
               <button
@@ -308,7 +342,7 @@ export default function ReportDisplay({ report, topic, wordCount, generatedAt, o
         </div>
       </div>
 
-      {/* Expand / collapse all controls */}
+      {/* Expand / collapse controls */}
       <div className="flex items-center justify-between mb-4 px-1">
         <h3 className={`text-sm font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
           Report Sections

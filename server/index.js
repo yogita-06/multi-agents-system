@@ -13,7 +13,7 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:3000',
     'http://127.0.0.1:5173',
-    'https://multi-agents-system-6gdj.vercel.app/',  // ← apna actual Vercel URL yahan daalo
+    'https://multi-agents-system-6gdj.vercel.app/',  
   ],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
